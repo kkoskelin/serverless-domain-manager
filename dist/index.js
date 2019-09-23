@@ -237,7 +237,10 @@ class ServerlessCustomDomain {
             throw new Error("serverless-domain-manager: Plugin configuration is missing.");
         }
         this.domains = new Map();
-        this.serverless.service.custom.customDomain
+        let customDomains = this.serverless.service.custom.customDomain;
+        if (!Array.isArray(customDomains))
+            customDomains = [customDomains];
+        customDomains
             .map((customDomain) => {
             const domain = new DomainInfo(customDomain, this.serverless, this.options);
             if (!domain.enabled) {
