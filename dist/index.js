@@ -155,8 +155,8 @@ class ServerlessCustomDomain {
             const successful = new Map();
             let domain = iterator.next();
             while (!domain.done) {
+                this.domainManagerLog(`Looping ${domain}`);
                 const domainInfo = domain.value[1];
-                this.domainManagerLog(`Looping ${domainInfo}`);
                 try {
                     if (domainInfo.enabled) {
                         const apiId = yield this.getApiId(domainInfo);
@@ -190,7 +190,9 @@ class ServerlessCustomDomain {
                 }
             }
             if (successful.size > 0) {
+                this.domainManagerLog(`Printing summary`);
                 yield this.domainSummary();
+                this.domainManagerLog(`Printed summary`);
             }
         });
     }
