@@ -243,6 +243,7 @@ class ServerlessCustomDomain {
                    domain = iterator.next();
                 }
             } else {
+                results.set(domain.value[0], "Route53 record not created.")
                 domain = iterator.next();
             }
         }
