@@ -174,6 +174,7 @@ class ServerlessCustomDomain {
         let domain = iterator.next();
         while (!domain.done) {
             const domainInfo = domain.value[1];
+            this.domainManagerLog(`Looping ${domainInfo}`);
             try {
 
                 if (domainInfo.enabled) {
@@ -185,8 +186,11 @@ class ServerlessCustomDomain {
                     if (!mapping) {
                         await this.createApiMapping(apiId, domainInfo);
                         domain = iterator.next();
+                        this.domainManagerLog(`domain.done = ${domain.done}`);
+                        this.domainManagerLog(`domainInfo = ${domainInfo}`);
                         this.addOutputs(domainInfo);
                         successful.set(domainInfo, "successful");
+                        this.domainManagerLog(`continuing`);
                         continue;
                     }
 
