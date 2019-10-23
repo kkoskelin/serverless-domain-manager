@@ -229,7 +229,9 @@ class ServerlessCustomDomain {
 
         let domain = iterator.next();
         while (!domain.done) {
+            this.domainManagerLog(`Looping ${domain.done}`);
             const domainInfo = domain.value[1];
+            this.domainManagerLog(`Looping ${domainInfo.createRoute53Record}`);
             if (domainInfo.createRoute53Record !== false) {
                 try {
                     await this.getAliasInfo(domainInfo);
