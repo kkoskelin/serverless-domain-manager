@@ -186,7 +186,9 @@ class ServerlessCustomDomain {
                 }
             }
             if (successful.size > 0) {
+                this.domainManagerLog(`Printing summary`);
                 yield this.domainSummary();
+                this.domainManagerLog(`Printed summary`);
             }
         });
     }
@@ -218,6 +220,10 @@ class ServerlessCustomDomain {
                         results.set(domain.value[0], msg);
                         domain = iterator.next();
                     }
+                }
+                else {
+                    results.set(domain.value[0], "Route53 record not created.");
+                    domain = iterator.next();
                 }
             }
             const sorted = [...results.values()].sort();

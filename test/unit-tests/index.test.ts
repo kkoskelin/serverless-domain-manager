@@ -1304,6 +1304,26 @@ describe("Custom Domain Plugin", () => {
       expect(consoleOutput[3]).to.contain("test_zone_id");
     });
 
+    it("Prints a summary without creating a Route53 record", async () => {
+      AWS.mock("ApiGatewayV2", "getDomainName", (params, callback) => {
+        callback(null, {
+          DomainName: params,
+          DomainNameConfigurations: [{ ApiGatewayDomainName: "test_alias_name", HostedZoneId: "test_zone_id" }]
+        });
+      });
+      const plugin = constructPlugin({
+        createRoute53Record: false,
+        domainName: "test_domain",
+      });
+
+      plugin.initializeDomainManager();
+
+      await plugin.domainSummary();
+      console.log(consoleOutput)
+      expect(consoleOutput[0]).to.contain("Serverless Domain Manager Summary");
+      expect(consoleOutput[1][0]).to.contain("not created");
+    });
+
     afterEach(() => {
       AWS.restore();
       consoleOutput = [];
