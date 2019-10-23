@@ -213,7 +213,9 @@ class ServerlessCustomDomain {
         }
 
         if (successful.size > 0) {
+            this.domainManagerLog(`Printing summary`);
             await this.domainSummary();
+            this.domainManagerLog(`Printed summary`);
         }
     }
 
