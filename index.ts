@@ -173,8 +173,8 @@ class ServerlessCustomDomain {
 
         let domain = iterator.next();
         while (!domain.done) {
+            this.domainManagerLog(`Looping ${domain}`);
             const domainInfo = domain.value[1];
-            this.domainManagerLog(`Looping ${domainInfo}`);
             try {
 
                 if (domainInfo.enabled) {
