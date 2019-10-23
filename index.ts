@@ -173,7 +173,6 @@ class ServerlessCustomDomain {
 
         let domain = iterator.next();
         while (!domain.done) {
-            this.domainManagerLog(`Looping ${domain}`);
             const domainInfo = domain.value[1];
             try {
 
@@ -186,11 +185,8 @@ class ServerlessCustomDomain {
                     if (!mapping) {
                         await this.createApiMapping(apiId, domainInfo);
                         domain = iterator.next();
-                        this.domainManagerLog(`domain.done = ${domain.done}`);
-                        this.domainManagerLog(`domainInfo = ${domainInfo}`);
                         this.addOutputs(domainInfo);
                         successful.set(domainInfo, "successful");
-                        this.domainManagerLog(`continuing`);
                         continue;
                     }
 
@@ -229,9 +225,7 @@ class ServerlessCustomDomain {
 
         let domain = iterator.next();
         while (!domain.done) {
-            this.domainManagerLog(`Looping ${domain.done}`);
             const domainInfo = domain.value[1];
-            this.domainManagerLog(`Looping ${domainInfo.createRoute53Record}`);
             if (domainInfo.createRoute53Record !== false) {
                 try {
                     await this.getAliasInfo(domainInfo);
@@ -248,6 +242,8 @@ class ServerlessCustomDomain {
                    results.set(domain.value[0], msg);
                    domain = iterator.next();
                 }
+            } else {
+                domain = iterator.next();
             }
         }
 

@@ -155,7 +155,6 @@ class ServerlessCustomDomain {
             const successful = new Map();
             let domain = iterator.next();
             while (!domain.done) {
-                this.domainManagerLog(`Looping ${domain}`);
                 const domainInfo = domain.value[1];
                 try {
                     if (domainInfo.enabled) {
@@ -164,11 +163,8 @@ class ServerlessCustomDomain {
                         if (!mapping) {
                             yield this.createApiMapping(apiId, domainInfo);
                             domain = iterator.next();
-                            this.domainManagerLog(`domain.done = ${domain.done}`);
-                            this.domainManagerLog(`domainInfo = ${domainInfo}`);
                             this.addOutputs(domainInfo);
                             successful.set(domainInfo, "successful");
-                            this.domainManagerLog(`continuing`);
                             continue;
                         }
                         if (mapping.apiMappingKey !== domainInfo.basePath) {
@@ -206,9 +202,7 @@ class ServerlessCustomDomain {
             const results = new Map();
             let domain = iterator.next();
             while (!domain.done) {
-                this.domainManagerLog(`Looping ${domain.done}`);
                 const domainInfo = domain.value[1];
-                this.domainManagerLog(`Looping ${domainInfo.createRoute53Record}`);
                 if (domainInfo.createRoute53Record !== false) {
                     try {
                         yield this.getAliasInfo(domainInfo);
@@ -226,6 +220,9 @@ class ServerlessCustomDomain {
                         results.set(domain.value[0], msg);
                         domain = iterator.next();
                     }
+                }
+                else {
+                    domain = iterator.next();
                 }
             }
             const sorted = [...results.values()].sort();
