@@ -409,6 +409,7 @@ class ServerlessCustomDomain {
 
                 createdDomain = await this.apigatewayv2.createDomainName(params).promise();
                 domain.SetApiGatewayRespV2(createdDomain);
+                this.logIfDebug("-------creating the domain!!");
                 this.domains.set(domain.domainName, domain);
             // }
 
