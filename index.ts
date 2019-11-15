@@ -377,26 +377,26 @@ class ServerlessCustomDomain {
         let createdDomain = {};
         try {
 
-            if (!domain.websocket) {
-                // Set up parameters
-                const params = {
-                    certificateArn: domain.certificateArn,
-                    domainName: domain.domainName,
-                    endpointConfiguration: {
-                        types: [domain.endpointType],
-                    },
-                    regionalCertificateArn: domain.certificateArn,
-                };
-                if (!domain.isRegional()) {
-                    params.regionalCertificateArn = undefined;
-                } else {
-                    params.certificateArn = undefined;
-                }
+            // if (!domain.websocket) {
+            //     // Set up parameters
+            //     const params = {
+            //         certificateArn: domain.certificateArn,
+            //         domainName: domain.domainName,
+            //         endpointConfiguration: {
+            //             types: [domain.endpointType],
+            //         },
+            //         regionalCertificateArn: domain.certificateArn,
+            //     };
+            //     if (!domain.isRegional()) {
+            //         params.regionalCertificateArn = undefined;
+            //     } else {
+            //         params.certificateArn = undefined;
+            //     }
 
-                createdDomain = await this.apigateway.createDomainName(params).promise();
-                domain.SetApiGatewayRespV1(createdDomain);
-                this.domains.set(domain.domainName, domain);
-            } else {
+            //     createdDomain = await this.apigateway.createDomainName(params).promise();
+            //     domain.SetApiGatewayRespV1(createdDomain);
+            //     this.domains.set(domain.domainName, domain);
+            // } else {
                 const params = {
                     DomainName: domain.domainName,
                     DomainNameConfigurations: [
@@ -410,7 +410,7 @@ class ServerlessCustomDomain {
                 createdDomain = await this.apigatewayv2.createDomainName(params).promise();
                 domain.SetApiGatewayRespV2(createdDomain);
                 this.domains.set(domain.domainName, domain);
-            }
+            // }
 
         } catch (err) {
             if (err.code === "TooManyRequestsException") {

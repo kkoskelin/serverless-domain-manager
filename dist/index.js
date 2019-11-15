@@ -347,40 +347,38 @@ class ServerlessCustomDomain {
         return __awaiter(this, void 0, void 0, function* () {
             let createdDomain = {};
             try {
-                if (!domain.websocket) {
-                    // Set up parameters
-                    const params = {
-                        certificateArn: domain.certificateArn,
-                        domainName: domain.domainName,
-                        endpointConfiguration: {
-                            types: [domain.endpointType],
+                // if (!domain.websocket) {
+                //     // Set up parameters
+                //     const params = {
+                //         certificateArn: domain.certificateArn,
+                //         domainName: domain.domainName,
+                //         endpointConfiguration: {
+                //             types: [domain.endpointType],
+                //         },
+                //         regionalCertificateArn: domain.certificateArn,
+                //     };
+                //     if (!domain.isRegional()) {
+                //         params.regionalCertificateArn = undefined;
+                //     } else {
+                //         params.certificateArn = undefined;
+                //     }
+                //     createdDomain = await this.apigateway.createDomainName(params).promise();
+                //     domain.SetApiGatewayRespV1(createdDomain);
+                //     this.domains.set(domain.domainName, domain);
+                // } else {
+                const params = {
+                    DomainName: domain.domainName,
+                    DomainNameConfigurations: [
+                        {
+                            CertificateArn: domain.certificateArn,
+                            EndpointType: domain.endpointType,
                         },
-                        regionalCertificateArn: domain.certificateArn,
-                    };
-                    if (!domain.isRegional()) {
-                        params.regionalCertificateArn = undefined;
-                    }
-                    else {
-                        params.certificateArn = undefined;
-                    }
-                    createdDomain = yield this.apigateway.createDomainName(params).promise();
-                    domain.SetApiGatewayRespV1(createdDomain);
-                    this.domains.set(domain.domainName, domain);
-                }
-                else {
-                    const params = {
-                        DomainName: domain.domainName,
-                        DomainNameConfigurations: [
-                            {
-                                CertificateArn: domain.certificateArn,
-                                EndpointType: domain.endpointType,
-                            },
-                        ],
-                    };
-                    createdDomain = yield this.apigatewayv2.createDomainName(params).promise();
-                    domain.SetApiGatewayRespV2(createdDomain);
-                    this.domains.set(domain.domainName, domain);
-                }
+                    ],
+                };
+                createdDomain = yield this.apigatewayv2.createDomainName(params).promise();
+                domain.SetApiGatewayRespV2(createdDomain);
+                this.domains.set(domain.domainName, domain);
+                // }
             }
             catch (err) {
                 if (err.code === "TooManyRequestsException") {
