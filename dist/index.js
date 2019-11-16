@@ -162,28 +162,25 @@ class ServerlessCustomDomain {
                         const mapping = yield this.getMapping(apiId, domainInfo);
                         if (!mapping) {
                             yield this.createApiMapping(apiId, domainInfo);
-                            domain = iterator.next();
                             this.addOutputs(domainInfo);
                             successful.set(domainInfo, "successful");
                             continue;
                         }
                         if (mapping.apiMappingKey !== domainInfo.basePath) {
                             yield this.updateApiMapping(mapping.apiMappingId, domainInfo, apiId);
-                            domain = iterator.next();
                             this.addOutputs(domainInfo);
                             successful.set(domainInfo, "successful");
                             continue;
                         }
                         else {
                             this.logIfDebug(`Path for ${domainInfo.domainName} is already current. Skipping...`);
-                            domain = iterator.next();
                         }
                     }
                 }
                 catch (err) {
                     this.logIfDebug(err.message);
-                    domain = iterator.next();
                 }
+                domain = iterator.next();
             }
             if (successful.size > 0) {
                 yield this.domainSummary();
@@ -210,15 +207,14 @@ class ServerlessCustomDomain {
                             domainName: domainInfo.domainName,
                             websocket: domainInfo.websocket,
                         });
-                        domain = iterator.next();
                     }
                     catch (err) {
                         const msg = `Unable to print Serverless Domain Manager Summary for ${domainInfo.domainName}`;
                         this.domainManagerLog(err);
                         results.set(domain.value[0], msg);
-                        domain = iterator.next();
                     }
                 }
+                domain = iterator.next();
             }
             const sorted = [...results.values()].sort();
             this.printDomainSummary(sorted);
@@ -347,39 +343,40 @@ class ServerlessCustomDomain {
         return __awaiter(this, void 0, void 0, function* () {
             let createdDomain = {};
             try {
-                // if (!domain.websocket) {
-                //     // Set up parameters
-                //     const params = {
-                //         certificateArn: domain.certificateArn,
-                //         domainName: domain.domainName,
-                //         endpointConfiguration: {
-                //             types: [domain.endpointType],
-                //         },
-                //         regionalCertificateArn: domain.certificateArn,
-                //     };
-                //     if (!domain.isRegional()) {
-                //         params.regionalCertificateArn = undefined;
-                //     } else {
-                //         params.certificateArn = undefined;
-                //     }
-                //     createdDomain = await this.apigateway.createDomainName(params).promise();
-                //     domain.SetApiGatewayRespV1(createdDomain);
-                //     this.domains.set(domain.domainName, domain);
-                // } else {
-                const params = {
-                    DomainName: domain.domainName,
-                    DomainNameConfigurations: [
-                        {
-                            CertificateArn: domain.certificateArn,
-                            EndpointType: domain.endpointType,
+                if (!domain.websocket) {
+                    // Set up parameters
+                    const params = {
+                        certificateArn: domain.certificateArn,
+                        domainName: domain.domainName,
+                        endpointConfiguration: {
+                            types: [domain.endpointType],
                         },
-                    ],
-                };
-                createdDomain = yield this.apigatewayv2.createDomainName(params).promise();
-                domain.SetApiGatewayRespV2(createdDomain);
-                this.logIfDebug("-------creating the domain!!");
-                this.domains.set(domain.domainName, domain);
-                // }
+                        regionalCertificateArn: domain.certificateArn,
+                    };
+                    if (!domain.isRegional()) {
+                        params.regionalCertificateArn = undefined;
+                    }
+                    else {
+                        params.certificateArn = undefined;
+                    }
+                    createdDomain = yield this.apigateway.createDomainName(params).promise();
+                    domain.SetApiGatewayRespV1(createdDomain);
+                    this.domains.set(domain.domainName, domain);
+                }
+                else {
+                    const params = {
+                        DomainName: domain.domainName,
+                        DomainNameConfigurations: [
+                            {
+                                CertificateArn: domain.certificateArn,
+                                EndpointType: domain.endpointType,
+                            },
+                        ],
+                    };
+                    createdDomain = yield this.apigatewayv2.createDomainName(params).promise();
+                    domain.SetApiGatewayRespV2(createdDomain);
+                    this.domains.set(domain.domainName, domain);
+                }
             }
             catch (err) {
                 if (err.code === "TooManyRequestsException") {
@@ -517,14 +514,28 @@ class ServerlessCustomDomain {
     }
     getMapping(ApiId, domain) {
         return __awaiter(this, void 0, void 0, function* () {
-            const params = {
-                DomainName: domain.domainName,
-            };
-            let mappingInfo;
             let apiMappingId;
             let apiMappingKey;
+            let Items = undefined;
             try {
-                mappingInfo = yield this.apigatewayv2.getApiMappings(params).promise();
+                if (domain.websocket) {
+                    const mappingInfo = yield this.apigatewayv2.getApiMappings({
+                        DomainName: domain.domainName,
+                    }).promise();
+                    Items = mappingInfo.Items;
+                }
+                else {
+                    const mappingInfo = yield this.apigateway.getBasePathMappings({
+                        domainName: domain.domainName,
+                    }).promise();
+                    this.logIfDebug(mappingInfo);
+                    Items = (mappingInfo && (mappingInfo.items || [])).map(item => ({
+                        ApiId: item.restApiId,
+                        ApiMappingId: null,
+                        ApiMappingKey: item.basePath,
+                        Stage: item.stage,
+                    }));
+                }
             }
             catch (err) {
                 this.logIfDebug(err);
@@ -533,8 +544,8 @@ class ServerlessCustomDomain {
                 }
                 throw new Error(`Error: Unable to get mappings for ${domain.domainName}`);
             }
-            if (mappingInfo.Items !== undefined && mappingInfo.Items instanceof Array) {
-                for (const m of mappingInfo.Items) {
+            if (Items !== undefined && Items instanceof Array) {
+                for (const m of Items) {
                     if (m.ApiId === ApiId) {
                         apiMappingId = m.ApiMappingId;
                         apiMappingKey = m.ApiMappingKey;
@@ -550,14 +561,23 @@ class ServerlessCustomDomain {
      */
     createApiMapping(apiId, domain) {
         return __awaiter(this, void 0, void 0, function* () {
-            const params = {
-                ApiId: apiId,
-                ApiMappingKey: domain.basePath,
-                DomainName: domain.domainName,
-                Stage: domain.stage,
-            };
             try {
-                yield this.apigatewayv2.createApiMapping(params).promise();
+                if (domain.websocket) {
+                    yield this.apigatewayv2.createApiMapping({
+                        ApiId: apiId,
+                        ApiMappingKey: domain.basePath,
+                        DomainName: domain.domainName,
+                        Stage: domain.stage,
+                    }).promise();
+                }
+                else {
+                    yield this.apigateway.createBasePathMapping({
+                        domainName: domain.domainName,
+                        restApiId: apiId,
+                        basePath: domain.basePath,
+                        stage: domain.stage,
+                    }).promise();
+                }
                 this.domainManagerLog(`Created API mapping for ${domain.domainName}.`);
             }
             catch (err) {

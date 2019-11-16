@@ -174,8 +174,8 @@ class ServerlessCustomDomain {
         let domain = iterator.next();
         while (!domain.done) {
             const domainInfo = domain.value[1];
-            try {
 
+            try {
                 if (domainInfo.enabled) {
 
                     const apiId = await this.getApiId(domainInfo);
@@ -184,7 +184,6 @@ class ServerlessCustomDomain {
 
                     if (!mapping) {
                         await this.createApiMapping(apiId, domainInfo);
-                        domain = iterator.next();
                         this.addOutputs(domainInfo);
                         successful.set(domainInfo, "successful");
                         continue;
@@ -192,25 +191,25 @@ class ServerlessCustomDomain {
 
                     if (mapping.apiMappingKey !== domainInfo.basePath) {
                         await this.updateApiMapping(mapping.apiMappingId, domainInfo, apiId);
-                        domain = iterator.next();
                         this.addOutputs(domainInfo);
                         successful.set(domainInfo, "successful");
                         continue;
                     } else {
                         this.logIfDebug(`Path for ${domainInfo.domainName} is already current. Skipping...`);
-                        domain = iterator.next();
                     }
 
                 }
             } catch (err) {
                 this.logIfDebug(err.message);
-                domain = iterator.next();
             }
+
+            domain = iterator.next();
         }
 
         if (successful.size > 0) {
             await this.domainSummary();
         }
+
     }
 
     /**
@@ -223,8 +222,10 @@ class ServerlessCustomDomain {
 
         let domain = iterator.next();
         while (!domain.done) {
+
             const domainInfo = domain.value[1];
             if (domainInfo.createRoute53Record !== false) {
+
                 try {
                     await this.getAliasInfo(domainInfo);
                     results.set(domain.value[0], {
@@ -233,14 +234,17 @@ class ServerlessCustomDomain {
                        domainName: domainInfo.domainName,
                        websocket: domainInfo.websocket,
                     });
-                    domain = iterator.next();
+
                 } catch (err) {
                    const msg = `Unable to print Serverless Domain Manager Summary for ${domainInfo.domainName}`;
+
                    this.domainManagerLog(err);
+
                    results.set(domain.value[0], msg);
-                   domain = iterator.next();
                 }
             }
+            domain = iterator.next();
+
         }
 
         const sorted = [...results.values()].sort();
@@ -377,26 +381,26 @@ class ServerlessCustomDomain {
         let createdDomain = {};
         try {
 
-            // if (!domain.websocket) {
-            //     // Set up parameters
-            //     const params = {
-            //         certificateArn: domain.certificateArn,
-            //         domainName: domain.domainName,
-            //         endpointConfiguration: {
-            //             types: [domain.endpointType],
-            //         },
-            //         regionalCertificateArn: domain.certificateArn,
-            //     };
-            //     if (!domain.isRegional()) {
-            //         params.regionalCertificateArn = undefined;
-            //     } else {
-            //         params.certificateArn = undefined;
-            //     }
+            if (!domain.websocket) {
+                // Set up parameters
+                const params = {
+                    certificateArn: domain.certificateArn,
+                    domainName: domain.domainName,
+                    endpointConfiguration: {
+                        types: [domain.endpointType],
+                    },
+                    regionalCertificateArn: domain.certificateArn,
+                };
+                if (!domain.isRegional()) {
+                    params.regionalCertificateArn = undefined;
+                } else {
+                    params.certificateArn = undefined;
+                }
 
-            //     createdDomain = await this.apigateway.createDomainName(params).promise();
-            //     domain.SetApiGatewayRespV1(createdDomain);
-            //     this.domains.set(domain.domainName, domain);
-            // } else {
+                createdDomain = await this.apigateway.createDomainName(params).promise();
+                domain.SetApiGatewayRespV1(createdDomain);
+                this.domains.set(domain.domainName, domain);
+            } else {
                 const params = {
                     DomainName: domain.domainName,
                     DomainNameConfigurations: [
@@ -409,9 +413,8 @@ class ServerlessCustomDomain {
 
                 createdDomain = await this.apigatewayv2.createDomainName(params).promise();
                 domain.SetApiGatewayRespV2(createdDomain);
-                this.logIfDebug("-------creating the domain!!");
                 this.domains.set(domain.domainName, domain);
-            // }
+            }
 
         } catch (err) {
             if (err.code === "TooManyRequestsException") {
@@ -548,16 +551,28 @@ class ServerlessCustomDomain {
 
     public async getMapping(ApiId: string, domain: DomainInfo): Promise<any> {
 
-        const params = {
-            DomainName: domain.domainName,
-        };
-
-        let mappingInfo;
         let apiMappingId;
         let apiMappingKey;
+        let Items = undefined
 
         try {
-            mappingInfo = await this.apigatewayv2.getApiMappings(params).promise();
+            if (domain.websocket) {
+                const mappingInfo = await this.apigatewayv2.getApiMappings({
+                    DomainName: domain.domainName,
+                }).promise();
+                Items = mappingInfo.Items;
+            } else {
+                const mappingInfo = await this.apigateway.getBasePathMappings({
+                    domainName: domain.domainName,
+                }).promise();
+                this.logIfDebug(mappingInfo);
+                Items = (mappingInfo && (mappingInfo.items || [])).map(item => ({
+                    ApiId: item.restApiId,
+                    ApiMappingId: null,
+                    ApiMappingKey: item.basePath,
+                    Stage: item.stage,
+                }));
+            }
         } catch (err) {
             this.logIfDebug(err);
             if (err.code === "NotFoundException") {
@@ -565,8 +580,8 @@ class ServerlessCustomDomain {
             }
             throw new Error(`Error: Unable to get mappings for ${domain.domainName}`);
         }
-        if (mappingInfo.Items !== undefined && mappingInfo.Items instanceof Array) {
-            for (const m of mappingInfo.Items) {
+        if (Items !== undefined && Items instanceof Array) {
+            for (const m of Items) {
                 if (m.ApiId === ApiId) {
                     apiMappingId = m.ApiMappingId;
                     apiMappingKey = m.ApiMappingKey;
@@ -582,15 +597,22 @@ class ServerlessCustomDomain {
      * Creates basepath mapping
      */
     public async createApiMapping(apiId: string, domain: DomainInfo): Promise<void> {
-        const params = {
-            ApiId: apiId,
-            ApiMappingKey: domain.basePath,
-            DomainName: domain.domainName,
-            Stage: domain.stage,
-        };
-
         try {
-            await this.apigatewayv2.createApiMapping(params).promise();
+            if (domain.websocket) {
+                await this.apigatewayv2.createApiMapping({
+                    ApiId: apiId,
+                    ApiMappingKey: domain.basePath,
+                    DomainName: domain.domainName,
+                    Stage: domain.stage,
+                }).promise();
+            } else {
+                await this.apigateway.createBasePathMapping({
+                    domainName: domain.domainName,
+                    restApiId:apiId,
+                    basePath: domain.basePath,
+                    stage: domain.stage,
+                  }).promise();
+            }
             this.domainManagerLog(`Created API mapping for ${domain.domainName}.`);
         } catch (err) {
             throw new Error(`${err}`);
