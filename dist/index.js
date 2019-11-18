@@ -214,6 +214,9 @@ class ServerlessCustomDomain {
                         results.set(domain.value[0], msg);
                     }
                 }
+                else {
+                    results.set(domain.value[0], "Route53 record not created.");
+                }
                 domain = iterator.next();
             }
             const sorted = [...results.values()].sort();
